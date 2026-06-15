@@ -10,7 +10,7 @@ user_setup_vm_fstab: false
 user_setup_motd: false
 
 # SSH key filename stem (e.g. id_rsa, id_ed25519)
-user_setup_ssh_key_name: id_rsa
+user_setup_ssh_key_name: id_ed25519
 
 # Controller-side directory containing the SSH keys
 user_setup_ssh_key_src_dir: "{{ lookup('env', 'HOME') }}/.ssh"
