@@ -42,6 +42,17 @@
     rocm_xio_setup_build_testing: true
     rocm_xio_setup_install_kmod: true
 
+    # The qcow is built in a GPU-less builder VM but RUN against a passed-through
+    # GPU. Pin the HIP code-object target so the binary matches the runtime GPU
+    # (override per host: RX 6900 XT = gfx1030). Without this CMake defaults to
+    # gfx906 and every kernel launch segfaults on a gfx1030 card.
+    rocm_xio_setup_offload_arch: "{{ guest_gpu_arch | default('gfx1030') }}"
+
+    # GPU-passthrough boot params (BAR realloc + NVMe QID-wedge mitigation),
+    # applied via a GRUB drop-in that survives the cloud image's grub overwrite.
+    rocm_xio_setup_grub_cmdline: >-
+      pci=realloc=on intel_iommu=on iommu=pt nvme.poll_queues=1
+
     # Baseline functional checks are fine in the guest (rocminfo, endpoint list,
     # unit tests incl. the new KV CLI unit tests, emulated test endpoint).
     rocm_xio_setup_run_basic_checks: true

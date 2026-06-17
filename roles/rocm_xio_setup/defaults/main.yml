@@ -15,6 +15,14 @@ rocm_xio_setup_remove_distro_hsa_runtime_dev: true
 rocm_xio_setup_build_type: "Release"
 rocm_xio_setup_build_clients: true
 rocm_xio_setup_build_testing: true
+# GPU code-object target for the HIP build. Set explicitly when the build host
+# has no GPU to auto-detect (e.g. a gen-vm builder VM), otherwise CMake falls
+# back to gfx906 and the binary segfaults on a different GPU at runtime. Empty
+# string keeps CMake's auto-detection (use on a GPU-present build host).
+rocm_xio_setup_offload_arch: ""
+# Kernel boot params for the GPU-passthrough NVMe test path, applied via a GRUB
+# drop-in (empty string skips the GRUB task entirely).
+rocm_xio_setup_grub_cmdline: ""
 rocm_xio_setup_install: false
 rocm_xio_setup_install_prefix: "/opt/rocm"
 rocm_xio_setup_parallel_jobs: "{{ ansible_processor_vcpus | default(4) }}"

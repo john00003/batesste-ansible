@@ -85,6 +85,8 @@
       -DCMAKE_BUILD_TYPE={{ rocm_xio_setup_build_type }}
       -DBUILD_CLIENTS={{ 'ON' if rocm_xio_setup_build_clients else 'OFF' }}
       -DBUILD_TESTING={{ 'ON' if rocm_xio_setup_build_testing else 'OFF' }}
+      {{ ('-DOFFLOAD_ARCH=' + rocm_xio_setup_offload_arch)
+         if rocm_xio_setup_offload_arch else '' }}
   changed_when: false
 
 - name: Build rocm-xio
@@ -129,6 +131,10 @@
   when: >-
     (rocm_xio_setup_env_nvme_device | length > 0)
     or (rocm_xio_setup_env_tmpdir | length > 0)
+
+- name: Apply GPU-passthrough kernel boot parameters (GRUB drop-in)
+  ansible.builtin.import_tasks: rocm_xio_grub.yml
+  when: rocm_xio_setup_grub_cmdline | length > 0
 
 - name: Run post-install rocm-xio checks
   ansible.builtin.import_tasks: rocm_xio_check.yml
