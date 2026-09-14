@@ -44,6 +44,7 @@ which is disabled upstream.
 | Variable | Default | Description |
 |---|---|---|
 | `fave_packages_node_exporter_extra_args` | `--collector.wifi` | Extra CLI flags for `prometheus-node-exporter` |
+| `fave_packages_install_packer` | `true` | Install `packer`, adding the HashiCorp apt source and signing key |
 
 Override the variable to add more collectors or disable
 the WiFi collector:
@@ -57,6 +58,20 @@ fave_packages_node_exporter_extra_args: >-
 fave_packages_node_exporter_extra_args: ""
 ```
 
+## HashiCorp packer
+
+`packer` is the only package this role takes from
+`apt.releases.hashicorp.com`. Installing it also leaves that
+apt source and its signing key on the host, so set
+`fave_packages_install_packer: false` to skip the repository
+entirely.
+
+The signing key is re-downloaded and re-dearmored on every
+run rather than being written once. HashiCorp rotate the key
+periodically (the current one, `FC9CA96ACA026560`, was issued
+2026-09-09), and a host whose keyring predates a rotation
+otherwise fails every later `apt update` with `NO_PUBKEY`.
+
 ## Example Playbook
 
 ```yaml
@@ -65,6 +80,18 @@ fave_packages_node_exporter_extra_args: ""
   hosts: all
   roles:
     - sbates130272.batesste.fave_packages
+```
+
+Skip the HashiCorp apt source:
+
+```yaml
+---
+- name: Install favourite packages without packer
+  hosts: all
+  roles:
+    - role: sbates130272.batesste.fave_packages
+      vars:
+        fave_packages_install_packer: false
 ```
 
 ## Dependencies

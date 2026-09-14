@@ -9,3 +9,8 @@
 # is disabled upstream by default; this enables it.
 fave_packages_node_exporter_extra_args: "--collector.wifi"
 fave_packages_uv_enable: true
+
+# Install HashiCorp packer, which also adds apt.releases.hashicorp.com and
+# its signing key to the host. Set false on hosts that should not carry a
+# third-party apt source for the sake of one package.
+fave_packages_install_packer: true

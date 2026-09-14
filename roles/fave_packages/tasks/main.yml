@@ -204,47 +204,74 @@
   become: true
   notify: Restart prometheus-node-exporter
 
-- name: Download HashiCorp GPG key
-  ansible.builtin.get_url:
-    url: https://apt.releases.hashicorp.com/gpg
-    dest: /etc/apt/keyrings/hashicorp-archive-keyring.asc
-    mode: "0644"
-  become: true
+# packer is the only thing this role wants from apt.releases.hashicorp.com,
+# so consumers that do not want a third-party apt source on the host can turn
+# the whole section off with fave_packages_install_packer.
+- name: Install packer from the HashiCorp apt repository
+  when: fave_packages_install_packer
+  block:
+    # HashiCorp rotate this signing key periodically -- the current one
+    # (FC9CA96ACA026560) was issued 2026-09-09 and the suites were re-signed
+    # on 2026-09-11. force: true so a keyring that was baked into an image
+    # before a rotation gets refreshed instead of being kept forever.
+    - name: Download HashiCorp GPG key
+      ansible.builtin.get_url:
+        url: https://apt.releases.hashicorp.com/gpg
+        dest: /etc/apt/keyrings/hashicorp-archive-keyring.asc
+        mode: "0644"
+        force: true
+      register: fave_packages_hashicorp_key
+      become: true
 
-- name: Dearmor HashiCorp GPG key
-  ansible.builtin.command:
-    cmd: >-
-      gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
-      /etc/apt/keyrings/hashicorp-archive-keyring.asc
-    creates: /usr/share/keyrings/hashicorp-archive-keyring.gpg
-  become: true
+    - name: Check for an existing dearmored HashiCorp keyring
+      ansible.builtin.stat:
+        path: /usr/share/keyrings/hashicorp-archive-keyring.gpg
+      register: fave_packages_hashicorp_keyring
 
-- name: Ensure HashiCorp GPG keyring is world-readable
-  ansible.builtin.file:
-    path: /usr/share/keyrings/hashicorp-archive-keyring.gpg
-    mode: "0644"
-  become: true
+    # Guarding this with creates: is what broke the role across a key
+    # rotation: the .asc above was refreshed but the dearmored keyring that
+    # apt actually reads was not, so every subsequent apt update failed with
+    # "NO_PUBKEY <new key id>" on a host that had run this role before.
+    # Key the dearmor off the download instead, and pass --batch --yes
+    # because gpg --dearmor refuses to overwrite an existing output file.
+    - name: Dearmor HashiCorp GPG key
+      ansible.builtin.command:
+        cmd: >-
+          gpg --batch --yes --dearmor
+          -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+          /etc/apt/keyrings/hashicorp-archive-keyring.asc
+      when: >-
+        fave_packages_hashicorp_key is changed
+        or not fave_packages_hashicorp_keyring.stat.exists
+      changed_when: true
+      become: true
 
-- name: Determine dpkg architecture for HashiCorp repo
-  ansible.builtin.command:
-    cmd: dpkg --print-architecture
-  register: fave_packages_dpkg_arch
-  changed_when: false
+    - name: Ensure HashiCorp GPG keyring is world-readable
+      ansible.builtin.file:
+        path: /usr/share/keyrings/hashicorp-archive-keyring.gpg
+        mode: "0644"
+      become: true
 
-- name: Add HashiCorp apt repository
-  ansible.builtin.apt_repository:
-    repo: >-
-      deb [arch={{ fave_packages_dpkg_arch.stdout }}
-      signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg]
-      https://apt.releases.hashicorp.com
-      {{ ansible_facts['distribution_release'] }} main
-    filename: hashicorp
-    state: present
-  become: true
+    - name: Determine dpkg architecture for HashiCorp repo
+      ansible.builtin.command:
+        cmd: dpkg --print-architecture
+      register: fave_packages_dpkg_arch
+      changed_when: false
 
-- name: Install packer
-  ansible.builtin.apt:
-    name: packer
-    state: present
-    update_cache: true
-  become: true
+    - name: Add HashiCorp apt repository
+      ansible.builtin.apt_repository:
+        repo: >-
+          deb [arch={{ fave_packages_dpkg_arch.stdout }}
+          signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg]
+          https://apt.releases.hashicorp.com
+          {{ ansible_facts['distribution_release'] }} main
+        filename: hashicorp
+        state: present
+      become: true
+
+    - name: Install packer
+      ansible.builtin.apt:
+        name: packer
+        state: present
+        update_cache: true
+      become: true
