@@ -98,13 +98,26 @@
   become: true
   when: nvmeof_setup_install_tools
 
-- name: Install configfs-tools for target configuration
+# Distro kernels ship nvmet-* in linux-modules-extra; mainline and custom
+# kernels often build them in and have no such package to install.
+- name: Check whether the running kernel already has the target modules
+  ansible.builtin.command:
+    cmd: modinfo -n {{ item }}
+  loop: "{{ nvmeof_setup_target_modules }}"
+  register: nvmeof_setup_target_modinfo
+  changed_when: false
+  failed_when: false
+  when: nvmeof_setup_mode == 'target'
+
+- name: Install linux-modules-extra when a target module is missing
   ansible.builtin.package:
     name:
       - linux-modules-extra-{{ ansible_facts['kernel'] }}
     state: present
   become: true
-  when: nvmeof_setup_mode == 'target'
+  when:
+    - nvmeof_setup_mode == 'target'
+    - nvmeof_setup_target_modinfo.results | selectattr('rc', 'ne', 0) | list | length > 0
 
 - name: Cleanup existing NVMe-oF configuration
   ansible.builtin.include_tasks: cleanup.yml
