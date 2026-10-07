@@ -33,18 +33,21 @@
 - name: Resolve target IP from interface or variable (target mode)
   ansible.builtin.set_fact:
     nvmeof_setup_target_ip_resolved: "{{
-      (
-        (hostvars[inventory_hostname]['ansible_' ~ nvmeof_setup_target_interface]
+      ((hostvars[inventory_hostname][nvmeof_setup_iface_fact_key]
           | default({})).ipv4.address
-        | default((hostvars[inventory_hostname]['ansible_' ~ nvmeof_setup_target_interface]
+        | default((hostvars[inventory_hostname][nvmeof_setup_iface_fact_key]
           | default({})).ipv4[0].address | default(''))
-        | default(nvmeof_setup_target_ip)
-      )
+        | default(nvmeof_setup_target_ip))
       if (nvmeof_setup_target_interface | length > 0)
-        and (hostvars[inventory_hostname]['ansible_' ~ nvmeof_setup_target_interface]
+        and (hostvars[inventory_hostname][nvmeof_setup_iface_fact_key]
           | default({})).ipv4 is defined
       else nvmeof_setup_target_ip
     }}"
+  vars:
+    # Ansible names interface facts with '-' and ':' replaced by '_'
+    # (rocm-ernic0 -> ansible_rocm_ernic0).
+    nvmeof_setup_iface_fact_key: >-
+      ansible_{{ nvmeof_setup_target_interface | regex_replace('[-:]', '_') }}
   when: nvmeof_setup_mode == 'target'
 
 - name: Initialize resolved host connections list

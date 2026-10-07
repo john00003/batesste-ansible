@@ -34,7 +34,11 @@
     - _iface_fact.ipv4 is defined
     - _iface_ipv4 | length > 0
   vars:
-    _iface_fact: "{{ hostvars[inventory_hostname]['ansible_' ~ item] | default({}) }}"
+    # Ansible names interface facts with '-' and ':' replaced by '_'.
+    _iface_fact: "{{
+      hostvars[inventory_hostname]['ansible_' ~ (item | regex_replace('[-:]', '_'))]
+      | default({})
+    }}"
     _iface_ipv4: "{{
       _iface_fact.ipv4.address
       | default(_iface_fact.ipv4[0].address | default(''))
